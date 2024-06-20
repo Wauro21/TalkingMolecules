@@ -18,23 +18,23 @@ uint32_t button_c_debounce = 0U;
 
 int readButtonDebounce(uint32_t* debounce_var, int pin);
 
-void sendMP3CMD(int8_t cmd, int16_t data);
+void sendMP3CMD(uint8_t cmd, uint16_t data);
 
 void setup()
 {
-    Serial2.begin(9600);
-    delay(500);
+    Serial2.begin(9600, SERIAL_8N1, 16, 17); // DEFINE THE PINS USED BY THE UART2 EXPLICTLY!
+    delay(2000);
 
     // Testing MP3 Player
+    sendMP3CMD(0x0C, 0x0000);
     // -> Setup SD card
-    sendMP3CMD(0x09, 0x02);
-    delay(200);
+    sendMP3CMD(0x09, 0x0002);
+    sendMP3CMD(0x06, 0x0014);
     // -> Select folder
     sendMP3CMD(0x0F, 0x0101);
-    delay(200);
+    //delay(200);
     // -> select track
-    sendMP3CMD(0x03, 0x01);
-
+    //sendMP3CMD(0x03, 0x01);
 
     // Setup pins
     // -> Output leds 12, 14, 27
@@ -58,16 +58,19 @@ void loop()
     if(button_a_state == 1)
     {
         state_a = !state_a;
+        sendMP3CMD(0x0F, 0x0101);
     }
 
     if(button_b_state == 1)
     {
         state_b = !state_b;
+        sendMP3CMD(0x0F, 0x0102);
     }
 
     if(button_c_state == 1)
     {
         state_c = !state_c;
+        sendMP3CMD(0x0F, 0x0103);
     }
 
 
@@ -95,7 +98,7 @@ int readButtonDebounce(uint32_t* debounce_var, int pin)
 
 }
 
-void sendMP3CMD(int8_t cmd, int16_t data)
+void sendMP3CMD(uint8_t cmd, uint16_t data)
 {
     uint8_t frame[10] = { 0 };
     frame[0] = 0x7e; // Starting frame 
@@ -103,20 +106,21 @@ void sendMP3CMD(int8_t cmd, int16_t data)
     frame[2] = 0x06; // Number of remaining bytes
     frame[3] = cmd; // CMD
     frame[4] = 0x00; // No feedback
-    frame[5] = (int8_t) (data >> 8); // Data: high byte
-    frame[6] = (int8_t) (data); // Data: low byte
+    frame[5] = (uint8_t) (data >> 8) & 0xFF; // Data: high byte
+    frame[6] = (uint8_t) (data) & 0xFF; // Data: low byte
     
     // Calculate checksum
-    int16_t checksum = 0;
-    for (uint8_t i = 2; i < 8;  )
+    uint16_t checksum = 0xFFFF;
+    for (uint8_t i = 1; i < 7; i++)
     {
         checksum -= frame[i];
     }
-    frame[7] = checksum >> 8;
-    frame[8] = checksum;
+    checksum += 1;
+    frame[7] = (checksum >> 8) & 0xFF;
+    frame[8] = checksum & 0xFF;
     frame[9] = 0xef; // end byte
 
-    for (uint8_t i = 0; i < 8; i++)
+    for (uint8_t i = 0; i < 10; i++)
     {
         Serial2.write(frame[i]);
     }
