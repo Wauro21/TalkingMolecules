@@ -97,7 +97,6 @@ int readButtonDebounce(uint32_t* debounce_var, int pin)
 
 void sendMP3CMD(int8_t cmd, int16_t data)
 {
-    uint16_t checksum = 0;
     uint8_t frame[10] = { 0 };
     frame[0] = 0x7e; // Starting frame 
     frame[1] = 0xff; // Version
@@ -108,8 +107,13 @@ void sendMP3CMD(int8_t cmd, int16_t data)
     frame[6] = (int8_t) (data); // Data: low byte
     
     // Calculate checksum
+    int16_t checksum = 0;
     for (uint8_t i = 2; i < 8;  )
-    
+    {
+        checksum -= frame[i];
+    }
+    frame[7] = checksum >> 8;
+    frame[8] = checksum;
     frame[9] = 0xef; // end byte
 
     for (uint8_t i = 0; i < 8; i++)
