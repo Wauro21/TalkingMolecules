@@ -6,7 +6,7 @@ PORT= /dev/ttyUSB0
 default: build
 
 
-FILE_TO_BUILD=audio.ino
+FILE_TO_BUILD=water.ino
 
 
 build: 
