@@ -16,16 +16,18 @@ typedef enum {
 } ButtonStates;
 // ---------------- Pinout Configurations ----------------
 // -> Used to read the state of the MP3 player:
-#define BUSY_READ_PIN 4 
+#define BUSY_READ_PIN 34 
 #define BUSY_THRESHOLD 2500
 // -> Used for relay and motor control of each atom
-#define O_PIN_A 12
-#define O_PIN_B 14
-#define O_PIN_C 27
+#define O_PIN_A 2
+#define O_PIN_B 0
+#define O_PIN_C 4
 // -> Input pins for buttons
-#define I_PIN_A 13
-#define I_PIN_B 26
+#define I_PIN_A 33
+#define I_PIN_B 32
 #define I_PIN_C 25
+// -> Status LED
+#define STATUS_LED 23
 // ----------------- MP3 Defaults Values ----------------
 #define CMD_PLAY_FOLDER_TRACK 0x0F
 #define A_FOLDER_TRACK 0x0101
@@ -86,6 +88,14 @@ void setup()
     pinMode(I_PIN_C, INPUT_PULLUP);
     // SETUP PIN FOR MP3 BUSY FLAG
     pinMode(BUSY_READ_PIN, INPUT);
+    // SETUP STATUS LED
+    pinMode(STATUS_LED, OUTPUT);
+
+    // INITIALIZE OUTPUS
+    digitalWrite(STATUS_LED, LOW);
+    digitalWrite(O_PIN_A, LOW);
+    digitalWrite(O_PIN_B, LOW);
+    digitalWrite(O_PIN_C, LOW);
 
     // Initialize state variables
     busy_pin_read = 0;
@@ -115,9 +125,9 @@ void loop()
         state_c = false; 
 
         // Read the buttons values
-        button_a_state = readButtonDebounce(&button_a_debounce, 13);
-        button_b_state = readButtonDebounce(&button_b_debounce, 26);
-        button_c_state = readButtonDebounce(&button_c_debounce, 25);
+        button_a_state = readButtonDebounce(&button_a_debounce, I_PIN_A);
+        button_b_state = readButtonDebounce(&button_b_debounce, I_PIN_B);
+        button_c_state = readButtonDebounce(&button_c_debounce, I_PIN_C);
 
         if(button_a_state == BUTTON_PRESS)
         {
@@ -161,10 +171,12 @@ void loop()
     }
 
 
-    // Update LEDs
+    // Update outputs and state led
     digitalWrite(O_PIN_A, state_a);
     digitalWrite(O_PIN_B, state_b);
     digitalWrite(O_PIN_C, state_c);
+    digitalWrite(STATUS_LED, current_state);
+    
 
 }
 
