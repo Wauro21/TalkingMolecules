@@ -38,6 +38,7 @@
 #include <stdbool.h>
 
 void    usiTwiSlaveInit( uint8_t );
+void    usiTwiSlaveEnd( void );
 void    usiTwiTransmitByte( uint8_t );
 uint8_t usiTwiReceiveByte( void );
 bool    usiTwiDataInReceiveBuffer( void );
@@ -46,6 +47,9 @@ bool    usiTwiDataInTransmitBuffer(void);
 uint8_t usiTwiAmountDataInReceiveBuffer(void);
 void    (*usi_onRequestPtr)(void);
 void    (*usi_onReceiverPtr)(uint8_t);
+
+// Added
+void (*usi_data_received)(void);
 
 #ifndef TWI_RX_BUFFER_SIZE
 #define TWI_RX_BUFFER_SIZE (32)

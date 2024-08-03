@@ -187,6 +187,18 @@ void usiTwiSlaveInit(uint8_t ownAddress) {
     USISR     =  (1 << USI_START_COND_INT) | (1 << USIOIF) | (1 << USIPF) | (1 << USIDC);
 }
 
+void usiTwiSlaveEnd( void )
+{
+    flushTwiBuffers();
+    USISR |= _BV(USIPF);
+    USICR &= ~(_BV(USISIE) | _BV(USIOIE) );
+    // Release the SDA and SCL lines
+    DDR_USI &= ~(1 << PORT_USI_SCL);
+    DDR_USI &= ~(1 << PORT_USI_SDA);
+    PORT_USI &= ~(1 << PORT_USI_SCL);
+    PORT_USI &= ~(1 << PORT_USI_SDA);
+    
+}
 
 bool usiTwiDataInTransmitBuffer(void) {
     return txCount;
@@ -271,6 +283,7 @@ ISR(USI_OVERFLOW_VECTOR) {
                     rxHead = (rxHead + 1) & TWI_RX_BUFFER_MASK;
                     rxCount++;
             }
+            usi_data_received();
             overflowState = USI_SLAVE_REQUEST_DATA;
             SET_USI_TO_SEND_ACK();
             break;

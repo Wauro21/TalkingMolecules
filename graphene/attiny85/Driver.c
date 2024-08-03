@@ -13,12 +13,11 @@ typedef enum
     TEST,
     IDLE,
     USI_START,
-    LISTEN,
-    HOLD,
-    RESET,
+    USI_OP,
+    USI_RESET,
 } GENERAL_FSM;
 
-GENERAL_FSM current_state = IDLE;
+GENERAL_FSM current_state = TEST;
 
 // ---------- Software Debouncer Configurations ----------
 #define PRESS_BUTTON_MASK 0x80000000
@@ -32,7 +31,11 @@ typedef enum
 
 ButtonStates input_state = BUTTON_IDLE;
 uint32_t button_debounce = 0U;
-bool output_a = false;
+static bool output_a = false;
+static uint8_t cmd = 0x00;
+
+/// ISR VARIABLES
+volatile bool usi_done_flag = false;
 
 // ---------------- Functions declarations --------------
 
@@ -42,6 +45,9 @@ bool output_a = false;
 /// @return The current state of the button
 ButtonStates readButtonDebounce(uint32_t *debounce_var, uint8_t pin);
 
+void dataWasReceived();
+void dataNeedsSending();
+
 int main()
 {
     DDRB |= _BV(LED_STATUS) | _BV(OUTPUT_PIN);
@@ -50,15 +56,17 @@ int main()
     PORTB |= _BV(LED_STATUS);
     PORTB &= ~_BV(OUTPUT_PIN);
     // usiTwiSlaveInit(8);
-    uint8_t data = 0;
-    current_state = IDLE;
+    usi_data_received = &dataWasReceived;
+    current_state = TEST;
     while (1)
     {
         switch (current_state)
         {
         case TEST:
         {
+            // TEMPORAL
             current_state = IDLE;
+            break;
         }
 
         case IDLE:
@@ -69,43 +77,46 @@ int main()
             // Check change in state
             if (input_state == BUTTON_PRESS)
             {
-                current_state = LISTEN; // Go to USI mode
+                current_state = USI_START;
             }
             break;
         }
         case USI_START:
         {
-            current_state = LISTEN;
+            input_state = IDLE;
+            current_state = USI_OP;
             output_a = true;
-            // Enable USI
+            // Enable USI and interrupts
             usiTwiSlaveInit(8);
             sei();
+            break;
         }
 
-        case LISTEN:
+        case USI_OP:
         {
-            data = usiTwiReceiveByte();
-            if (data == 1)
+            if (USISR & _BV(USIPF))
             {
-                PORTB |= _BV(LED_STATUS);
+                current_state = USI_RESET;
             }
-
-            else
-            {
-                PORTB &= ~_BV(LED_STATUS);
-            }
+            break;
+        }
+        case USI_RESET:
+        {
+            PORTB |= _BV(OUTPUT_PIN); // TURN LIGHT WHEN RESETTING
+            usiTwiSlaveEnd();
+            current_state = TEST; // Temporal
             break;
         }
         }
 
         // UPDATE OUPUTS
-        if (output_a)
+        if (cmd == 0x11)
         {
-            PORTB |= _BV(OUTPUT_PIN);
+            PORTB |= _BV(LED_STATUS);
         }
         else
         {
-            PORTB &= ~_BV(OUTPUT_PIN);
+            PORTB &= ~_BV(LED_STATUS);
         }
     }
 }
@@ -127,4 +138,11 @@ ButtonStates readButtonDebounce(uint32_t *debounce_var, uint8_t pin)
     default:
         return BUTTON_IDLE;
     }
+}
+
+void dataWasReceived()
+{
+    // Retrieve the command and indicate end of USI operation
+    cmd = usiTwiReceiveByte();
+    usi_done_flag = true;
 }
