@@ -283,7 +283,6 @@ ISR(USI_OVERFLOW_VECTOR) {
                     rxHead = (rxHead + 1) & TWI_RX_BUFFER_MASK;
                     rxCount++;
             }
-            usi_data_received();
             overflowState = USI_SLAVE_REQUEST_DATA;
             SET_USI_TO_SEND_ACK();
             break;
