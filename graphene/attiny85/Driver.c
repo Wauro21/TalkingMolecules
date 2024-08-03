@@ -2,23 +2,12 @@
 #include <avr/interrupt.h>
 #include "USI_TWI_Slave.h"
 
+// ---------- USI-I2C module Configurations ----------
 #define MCU_ADDRESS 0x08
+// -------------- PIN OUT Definitions ----------------
 #define INPUT_PIN_A PB3
 #define INPUT_PIN_B PB4
 #define OUTPUT_PIN PB1
-
-// GENERAL FSM
-typedef enum
-{
-    TEST,
-    IDLE,
-    USI_START,
-    USI_OP,
-    USI_RESET,
-} GENERAL_FSM;
-
-GENERAL_FSM current_state = TEST;
-
 // ---------- Software Debouncer Configurations ----------
 #define PRESS_BUTTON_MASK 0x80000000
 #define HOLD_BUTTON_MASK 0xFFFFFFFF
@@ -33,10 +22,12 @@ ButtonStates input_state_a = BUTTON_IDLE;
 ButtonStates input_state_b = BUTTON_IDLE;
 uint32_t button_debounce_a = 0U;
 uint32_t button_debounce_b = 0U;
-static bool output_a = false;
+uint8_t button_lock = 0x00;
 static uint8_t cmd = 0x00;
 static uint8_t pressed_reg = 0x00;
 static uint8_t timer_flag = 0x00;
+uint8_t data_amount = 0;
+static uint8_t clear_flag = 0x00;
 
 // ---------------- Functions declarations --------------
 
@@ -54,15 +45,16 @@ void stopTimer(void);
 
 int main()
 {
+
+    input_state_a = BUTTON_IDLE;
+    input_state_b = BUTTON_IDLE;
     DDRB |= _BV(OUTPUT_PIN);
     DDRB &= ~(_BV(INPUT_PIN_A) | _BV(INPUT_PIN_B)); // INPUT
     PORTB |= _BV(INPUT_PIN_A) | _BV(INPUT_PIN_B);   // INPUT PULLUP
-    PORTB &= ~_BV(OUTPUT_PIN);
+    PORTB |= _BV(OUTPUT_PIN);
 
     // USI Callback
     usi_onRequestPtr = TX;
-    // FSM initial state
-    current_state = TEST;
 
     // SETUP TIMER
     TCCR0A &= ~(_BV(COM0A1) | _BV(COM0A0) | _BV(COM0B1) | _BV(COM0B0)); // Compare units disconnected
@@ -70,80 +62,63 @@ int main()
     // TCCR0B |= _BV(CS01);                                                // Prescaler 8
     // TIMSK |= _BV(TOIE0); // Overflow interrupt enable
 
+    // USI SETUP
+    usiTwiSlaveInit(MCU_ADDRESS);
     sei();
 
     while (1)
     {
-        switch (current_state)
+        if (clear_flag == 0xff)
         {
-        case TEST:
-        {
-            // TEMPORAL
-            current_state = IDLE;
-            break;
+            // Clear the button registry and flag
+            pressed_reg = 0x00;
+            clear_flag = 0x00;
+            button_lock = 0x00;
+            input_state_a = BUTTON_IDLE;
+            input_state_b = BUTTON_IDLE;
         }
 
-        case IDLE:
+        // Update button register
+        if (button_lock == 0x00)
         {
-            // Wait for button press
+            // Check for button press
             input_state_a = readButtonDebounce(&button_debounce_a, INPUT_PIN_A);
             input_state_b = readButtonDebounce(&button_debounce_b, INPUT_PIN_B);
 
-            // Check change in state
             if (input_state_a == BUTTON_PRESS)
             {
+                // PORTB &= ~_BV(OUTPUT_PIN);
                 pressed_reg = 0x80;
-                current_state = USI_START;
+                button_lock = 0xFF;
+                startTimer();
             }
 
             if (input_state_b == BUTTON_PRESS)
             {
                 pressed_reg = 0x01;
-                current_state = USI_START;
+                button_lock = 0xFF;
+                startTimer();
             }
-            break;
         }
-        case USI_START:
-        {
-            current_state = USI_OP;
-            output_a = true;
-            // Enable USI and interrupts
-            usiTwiSlaveInit(MCU_ADDRESS);
-            startTimer();
-            break;
-        }
-
-        case USI_OP:
-        {
-            if (timer_flag && (cmd == 0x00))
-            {
-                current_state = USI_RESET;
-            }
-            else if (USISR & _BV(USIPF))
-            {
-                cmd = usiTwiReceiveByte();
-                current_state = USI_RESET;
-            }
-            break;
-        }
-        case USI_RESET:
+        // If wait too long clear the button status
+        if (timer_flag)
         {
             stopTimer();
-            if (timer_flag)
-            {
-                timer_flag = 0x00;
-                cmd = 0x00;
-            }
             pressed_reg = 0x00;
-            usiTwiSlaveEnd();
+            button_lock = 0x00;
+            timer_flag = 0x00;
             input_state_a = BUTTON_IDLE;
             input_state_b = BUTTON_IDLE;
-            current_state = TEST; // Temporal
-            break;
-        }
         }
 
-        // UPDATE OUPUTS
+        // Check for current CMD
+        data_amount = usiTwiAmountDataInReceiveBuffer();
+        if (data_amount > 0)
+        {
+            cmd = usiTwiReceiveByte();
+        }
+
+        // Update output status if button pressed
         if (cmd == 0x11)
         {
             PORTB |= _BV(OUTPUT_PIN);
@@ -177,6 +152,8 @@ ButtonStates readButtonDebounce(uint32_t *debounce_var, uint8_t pin)
 void TX()
 {
     usiTwiTransmitByte(pressed_reg);
+    // clear the pressed register
+    clear_flag = 0xff;
 }
 
 void startTimer(void)
