@@ -26,13 +26,29 @@
 #define STATUS_LED 23
 // ----------------- MP3 Defaults Values ----------------
 #define CMD_PLAY_FOLDER_TRACK 0x0F
-#define A_FOLDER_TRACK 0x0101
-#define B_FOLDER_TRACK 0x0102
-#define C_FOLDER_TRACK 0x0103
+// -> Tracks for button A pressed
+#define A_FOLDER_TRACK_A 0x0101
+#define B_FOLDER_TRACK_A 0x0102
+#define C_FOLDER_TRACK_A 0x0103
+#define D_FOLDER_TRACK_A 0x0104
+#define E_FOLDER_TRACK_A 0x0105
+#define F_FOLDER_TRACK_A 0x0106
+// -> Tracks for button B pressed
+#define A_FOLDER_TRACK_B 0x0201
+#define B_FOLDER_TRACK_B 0x0202
+#define C_FOLDER_TRACK_B 0x0203
+#define D_FOLDER_TRACK_B 0x0204
+#define E_FOLDER_TRACK_B 0x0205
+#define F_FOLDER_TRACK_B 0x0206
 // -> MP3 module busy state
 uint16_t busy_pin_read = 0;
 // -> FSM State - 0: idle, 1: playing
 int current_state = 0;
+// ----------------- INTERNAL FSM -----------------------
+bool lock_cpu = true;
+int node_pressed = 0;
+uint8_t node_button = 0;
+int audio_track = 0;
 // ---------------- Functions declarations --------------
 
 /// @brief Sends a CMD with data to the MP3 Player
@@ -103,7 +119,46 @@ void setup()
 
 void loop()
 {
-    // Main loop
+    // Main loop: Check if any buttons has been pressed - HOLD CPU UNTIL BUTTON IS REPORTED
+    while (lock_cpu)
+    {
+        // Poll nodes
+        uint8_t response_length = 0;
+        for (uint8_t add_i = START_ADDRESS; add_i <= END_ADDRESS; add_i++)
+        {
+            response_length = Wire.requestFrom((int)add_i, I2C_READ_BYTES, I2C_STOP_END);
+            if (response_length)
+            {
+                // A valid message has been received from node
+                node_pressed = add_i;
+                node_button = Wire.read();
+                // Unlock CPU to go to sound and animation routine
+                lock_cpu = false;
+                // Escape checking routine
+                break;
+            }
+        }
+    }
+
+    // Send the audio for playback
+    audio_track = getNodeAudioTrack(node_pressed, node_button);
+    sendMP3CMD(CMD_PLAY_FOLDER_TRACK, audio_track);
+    // Wait before checking pin for animation
+    delay(500);
+    // Get the animation
+    while (!lock_cpu)
+    {
+        busy_pin_read = analogRead(BUSY_READ_PIN);
+        if(busy_pin_read < BUSY_THRESHOLD)
+        {
+            lock_cpu = true;
+            // Clear the animation
+            sendWireCMD(0, OFF_CMD);
+            break;
+        }
+
+        // Select the animation to display [TO BE IMPLEMENTED]
+    }
 }
 
 void sendMP3CMD(uint8_t cmd, uint16_t data)
@@ -136,12 +191,11 @@ void sendMP3CMD(uint8_t cmd, uint16_t data)
 
 uint8_t sendWireCMD(uint8_t address, uint8_t cmd)
 {
-  uint8_t ret_value = 0;
-  Wire.beginTransmission(address);
-  Wire.write(cmd);
-  ret_value = Wire.endTransmission(I2C_STOP_END);
-  return ret_value;
-
+    uint8_t ret_value = 0;
+    Wire.beginTransmission(address);
+    Wire.write(cmd);
+    ret_value = Wire.endTransmission(I2C_STOP_END);
+    return ret_value;
 }
 
 void generalTest(void)
@@ -198,5 +252,87 @@ void strictTest(void)
         sendWireCMD(add_i, OFF_CMD);
         readed_value = 0x00;
         test = 0x00;
+    }
+}
+
+int getNodeAudioTrack(int node_id, uint8_t button_pressed)
+{
+    switch (node_id)
+    {
+    case 8:
+    {
+        if (button_pressed == INPUT_A_PRESSED)
+        {
+            return A_FOLDER_TRACK_A;
+        }
+        else if (button_pressed == INPUT_B_PRESSED)
+        {
+            return A_FOLDER_TRACK_B;
+        }
+        break;
+    }
+    case 9:
+    {
+        if (button_pressed == INPUT_A_PRESSED)
+        {
+            return B_FOLDER_TRACK_A;
+        }
+        else if (button_pressed == INPUT_B_PRESSED)
+        {
+            return B_FOLDER_TRACK_B;
+        }
+        break;
+    }
+    case 10:
+    {
+        if (button_pressed == INPUT_A_PRESSED)
+        {
+            return C_FOLDER_TRACK_A;
+        }
+        else if (button_pressed == INPUT_B_PRESSED)
+        {
+            return C_FOLDER_TRACK_B;
+        }
+        break;
+    }
+    case 11:
+    {
+        if (button_pressed == INPUT_A_PRESSED)
+        {
+            return D_FOLDER_TRACK_A;
+        }
+        else if (button_pressed == INPUT_B_PRESSED)
+        {
+            return D_FOLDER_TRACK_B;
+        }
+        break;
+    }
+    case 12:
+    {
+        if (button_pressed == INPUT_A_PRESSED)
+        {
+            return E_FOLDER_TRACK_A;
+        }
+        else if (button_pressed == INPUT_B_PRESSED)
+        {
+            return E_FOLDER_TRACK_B;
+        }
+        break;
+    }
+    case 13:
+    {
+        if (button_pressed == INPUT_A_PRESSED)
+        {
+            return F_FOLDER_TRACK_A;
+        }
+        else if (button_pressed == INPUT_B_PRESSED)
+        {
+            return F_FOLDER_TRACK_B;
+        }
+        break;
+    }
+
+    default:
+        return 0;
     }
 }
