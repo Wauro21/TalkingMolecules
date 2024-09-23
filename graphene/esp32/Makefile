@@ -11,7 +11,7 @@ FILE_TO_BUILD=esp32.ino
 
 build: 
 	@echo "[Building with arduino-cli]"
-	@$(AC) compile --fqbn $(CORE) $(FILE_TO_BUILD)
+	@$(AC) compile --clean --fqbn $(CORE) $(FILE_TO_BUILD)
 
 
 upload:

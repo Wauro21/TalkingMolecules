@@ -1,5 +1,7 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include "functions.hpp"
+
 // --------------- I2C      Configurations ---------------
 #define START_ADDRESS 8
 #define END_ADDRESS 13 // Inclusive
@@ -7,8 +9,6 @@
 #define OFF_CMD 0x00
 #define INPUT_A_PRESSED 0xAA
 #define INPUT_B_PRESSED 0x55
-#define I2C_READ_BYTES 1
-#define I2C_STOP_END true
 #define WIRE_INIT_DELAY 1000
 #define I2C_STRIC_TEST_PIN 32
 #define I2C_STRICT_PIN_THRESHOLD 500 // LOW FOR ON
@@ -51,17 +51,6 @@ uint8_t node_button = 0;
 int audio_track = 0;
 // ---------------- Functions declarations --------------
 
-/// @brief Sends a CMD with data to the MP3 Player
-/// @param cmd One of the defined cmd for the player
-/// @param data Data associated with the command
-void sendMP3CMD(uint8_t cmd, uint16_t data);
-
-/// @brief Sends a command to the specified i2c-address
-/// @param address The submodule address
-/// @param cmd The command to send
-/// @return The return code for the operation
-uint8_t sendWireCMD(uint8_t address, uint8_t cmd);
-
 /// @brief Test all the devices, by sending a ON command followed
 /// by an OFF command. This tests doesn't verify if the secondary
 /// devices respond to the commands. Useful for checking
@@ -83,11 +72,11 @@ void setup()
     delay(1000);
     // SETUP MP3 PLAYER
     // -> Reset module
-    sendMP3CMD(0x0C, 0x0000);
+    sendMP3CMD(Serial2, 0x0C, 0x0000);
     // -> Setup SD card
-    sendMP3CMD(0x09, 0x0002);
+    sendMP3CMD(Serial2, 0x09, 0x0002);
     // -> Setup volume to 20/30
-    sendMP3CMD(0x06, 0x0014);
+    sendMP3CMD(Serial2, 0x06, 0x0014);
 
     // SETUP PIN FOR MP3 BUSY FLAG
     pinMode(BUSY_READ_PIN, INPUT);
@@ -142,7 +131,7 @@ void loop()
 
     // Send the audio for playback
     audio_track = getNodeAudioTrack(node_pressed, node_button);
-    sendMP3CMD(CMD_PLAY_FOLDER_TRACK, audio_track);
+    sendMP3CMD(Serial2, CMD_PLAY_FOLDER_TRACK, audio_track);
     // Wait before checking pin for animation
     delay(500);
     // Get the animation
@@ -153,49 +142,12 @@ void loop()
         {
             lock_cpu = true;
             // Clear the animation
-            sendWireCMD(0, OFF_CMD);
+            sendWireCMD(Wire, 0, OFF_CMD);
             break;
         }
 
         // Select the animation to display [TO BE IMPLEMENTED]
     }
-}
-
-void sendMP3CMD(uint8_t cmd, uint16_t data)
-{
-    uint8_t frame[10] = {0};
-    frame[0] = 0x7e;                        // Starting frame
-    frame[1] = 0xff;                        // Version
-    frame[2] = 0x06;                        // Number of remaining bytes
-    frame[3] = cmd;                         // CMD
-    frame[4] = 0x00;                        // No feedback
-    frame[5] = (uint8_t)(data >> 8) & 0xFF; // Data: high byte
-    frame[6] = (uint8_t)(data) & 0xFF;      // Data: low byte
-
-    // Calculate checksum
-    uint16_t checksum = 0xFFFF;
-    for (uint8_t i = 1; i < 7; i++)
-    {
-        checksum -= frame[i];
-    }
-    checksum += 1;
-    frame[7] = (checksum >> 8) & 0xFF;
-    frame[8] = checksum & 0xFF;
-    frame[9] = 0xef; // end byte
-
-    for (uint8_t i = 0; i < 10; i++)
-    {
-        Serial2.write(frame[i]);
-    }
-}
-
-uint8_t sendWireCMD(uint8_t address, uint8_t cmd)
-{
-    uint8_t ret_value = 0;
-    Wire.beginTransmission(address);
-    Wire.write(cmd);
-    ret_value = Wire.endTransmission(I2C_STOP_END);
-    return ret_value;
 }
 
 void generalTest(void)
@@ -204,7 +156,7 @@ void generalTest(void)
     char cmd = ON_CMD;
     for (int i = 0; i < 2; i++)
     {
-        error_code = sendWireCMD(0, cmd);
+        error_code = sendWireCMD(Wire, 0, cmd);
         if (error_code)
         {
             Serial.print("Error during TEST - code: ");
@@ -219,7 +171,7 @@ void generalTest(void)
 void strictTest(void)
 {
     // Turn on all devices
-    sendWireCMD(0, ON_CMD);
+    sendWireCMD(Wire, 0, ON_CMD);
 
     uint8_t readed_len = 0;
     uint8_t readed_value = 0x00;
@@ -249,7 +201,7 @@ void strictTest(void)
             }
         }
         // If device passed turn-off led and go to the next device on list
-        sendWireCMD(add_i, OFF_CMD);
+        sendWireCMD(Wire, add_i, OFF_CMD);
         readed_value = 0x00;
         test = 0x00;
     }
