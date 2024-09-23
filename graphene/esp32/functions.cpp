@@ -54,3 +54,42 @@ void generalTest(TwoWire &WireComm, Stream &SerialComm)
         cmd = OFF_CMD;
     }
 }
+
+void strictTest(TwoWire &WireComm)
+{
+    // Turn on all devices
+    sendWireCMD(WireComm, 0, ON_CMD);
+
+    uint8_t readed_len = 0;
+    uint8_t readed_value = 0x00;
+    uint8_t test = 0x00;
+    // Check buttons on each device
+    for (uint8_t add_i = START_ADDRESS; add_i <= END_ADDRESS; add_i++)
+    {
+        while (test != 0xFF)
+        {
+            readed_len = WireComm.requestFrom((int)add_i, I2C_READ_BYTES, I2C_STOP_END);
+            if (readed_len)
+            {
+                readed_value = WireComm.read();
+                switch (readed_value)
+                {
+                case INPUT_A_PRESSED:
+                    test |= 0x0F;
+                    break;
+
+                case INPUT_B_PRESSED:
+                    test |= 0xF0;
+                    break;
+
+                default:
+                    break;
+                }
+            }
+        }
+        // If device passed turn-off led and go to the next device on list
+        sendWireCMD(WireComm, add_i, OFF_CMD);
+        readed_value = 0x00;
+        test = 0x00;
+    }
+}

@@ -11,6 +11,11 @@
 #define OFF_CMD 0x00
 #define I2C_TEST_DELAY 2000
 
+#define START_ADDRESS 8
+#define END_ADDRESS 13 // Inclusive
+#define INPUT_A_PRESSED 0xAA
+#define INPUT_B_PRESSED 0x55
+
 
 
 /// @brief Sends a CMD with data to the MP3 Player
@@ -34,5 +39,13 @@ uint8_t sendWireCMD(TwoWire &WireComm, uint8_t address, uint8_t cmd);
 /// @param WireComm The wire i2c communication bus
 /// @param SerialComm The serial port use for debug messages
 void generalTest(TwoWire &WireComm, Stream &SerialComm);
+
+
+/// @brief Performs an strict testing to every submodule. All
+/// outputs are set to HIGH and each device should have both
+/// buttons pressed in the order of the corresponding addresses
+/// from MIN to MAX address.
+/// @param WireComm The i2c bus
+void strictTest(TwoWire &WireComm);
 
 #endif

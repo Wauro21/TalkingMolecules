@@ -3,10 +3,6 @@
 #include "functions.hpp"
 
 // --------------- I2C      Configurations ---------------
-#define START_ADDRESS 8
-#define END_ADDRESS 13 // Inclusive
-#define INPUT_A_PRESSED 0xAA
-#define INPUT_B_PRESSED 0x55
 #define WIRE_INIT_DELAY 1000
 #define I2C_STRIC_TEST_PIN 32
 #define I2C_STRICT_PIN_THRESHOLD 500 // LOW FOR ON
@@ -49,12 +45,6 @@ uint8_t node_button = 0;
 int audio_track = 0;
 // ---------------- Functions declarations --------------
 
-/// @brief Performs an strict testing to every submodule. All
-/// outputs are set to HIGH and each device should have both
-/// buttons pressed in the order of the corresponding addresses
-/// from MIN to MAX address.
-void strictTest();
-
 /// @brief Setup operation of the microcontroller
 void setup()
 {
@@ -87,7 +77,7 @@ void setup()
     delay(WIRE_INIT_DELAY);
     if (strict_test_read >= I2C_STRICT_PIN_THRESHOLD)
     {
-        strictTest();
+        strictTest(Wire);
     }
 
     // INITIALIZE OUTPUS
@@ -142,44 +132,6 @@ void loop()
     }
 }
 
-void strictTest(void)
-{
-    // Turn on all devices
-    sendWireCMD(Wire, 0, ON_CMD);
-
-    uint8_t readed_len = 0;
-    uint8_t readed_value = 0x00;
-    uint8_t test = 0x00;
-    // Check buttons on each device
-    for (uint8_t add_i = START_ADDRESS; add_i <= END_ADDRESS; add_i++)
-    {
-        while (test != 0xFF)
-        {
-            readed_len = Wire.requestFrom((int)add_i, I2C_READ_BYTES, I2C_STOP_END);
-            if (readed_len)
-            {
-                readed_value = Wire.read();
-                switch (readed_value)
-                {
-                case INPUT_A_PRESSED:
-                    test |= 0x0F;
-                    break;
-
-                case INPUT_B_PRESSED:
-                    test |= 0xF0;
-                    break;
-
-                default:
-                    break;
-                }
-            }
-        }
-        // If device passed turn-off led and go to the next device on list
-        sendWireCMD(Wire, add_i, OFF_CMD);
-        readed_value = 0x00;
-        test = 0x00;
-    }
-}
 
 int getNodeAudioTrack(int node_id, uint8_t button_pressed)
 {
