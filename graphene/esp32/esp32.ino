@@ -5,14 +5,12 @@
 // --------------- I2C      Configurations ---------------
 #define START_ADDRESS 8
 #define END_ADDRESS 13 // Inclusive
-#define ON_CMD 0x11
-#define OFF_CMD 0x00
 #define INPUT_A_PRESSED 0xAA
 #define INPUT_B_PRESSED 0x55
 #define WIRE_INIT_DELAY 1000
 #define I2C_STRIC_TEST_PIN 32
 #define I2C_STRICT_PIN_THRESHOLD 500 // LOW FOR ON
-#define I2C_TEST_DELAY 2000
+
 // --------------- SERIAL 2 Configurations ---------------
 // -> Pinout
 #define RX2 16
@@ -51,12 +49,6 @@ uint8_t node_button = 0;
 int audio_track = 0;
 // ---------------- Functions declarations --------------
 
-/// @brief Test all the devices, by sending a ON command followed
-/// by an OFF command. This tests doesn't verify if the secondary
-/// devices respond to the commands. Useful for checking
-/// general connections
-void generalTest();
-
 /// @brief Performs an strict testing to every submodule. All
 /// outputs are set to HIGH and each device should have both
 /// buttons pressed in the order of the corresponding addresses
@@ -91,7 +83,7 @@ void setup()
     Wire.begin();
     // Wait and check for testing
     delay(WIRE_INIT_DELAY);
-    generalTest();
+    generalTest(Wire, Serial);
     delay(WIRE_INIT_DELAY);
     if (strict_test_read >= I2C_STRICT_PIN_THRESHOLD)
     {
@@ -147,24 +139,6 @@ void loop()
         }
 
         // Select the animation to display [TO BE IMPLEMENTED]
-    }
-}
-
-void generalTest(void)
-{
-    char error_code = 0x00;
-    char cmd = ON_CMD;
-    for (int i = 0; i < 2; i++)
-    {
-        error_code = sendWireCMD(Wire, 0, cmd);
-        if (error_code)
-        {
-            Serial.print("Error during TEST - code: ");
-            Serial.println(error_code);
-            // Could add LED indication for error
-        }
-        delay(I2C_TEST_DELAY);
-        cmd = OFF_CMD;
     }
 }
 

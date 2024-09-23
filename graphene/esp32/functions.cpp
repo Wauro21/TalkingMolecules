@@ -36,3 +36,21 @@ uint8_t sendWireCMD(TwoWire &WireComm, uint8_t address, uint8_t cmd)
     ret_value = WireComm.endTransmission(I2C_STOP_END);
     return ret_value;
 }
+
+void generalTest(TwoWire &WireComm, Stream &SerialComm)
+{
+    char error_code = 0x00;
+    char cmd = ON_CMD;
+    for (int i = 0; i < 2; i++)
+    {
+        error_code = sendWireCMD(WireComm, 0, cmd);
+        if (error_code)
+        {
+            SerialComm.print("Error during TEST - code: ");
+            SerialComm.println(error_code);
+            // Could add LED indication for error
+        }
+        delay(I2C_TEST_DELAY);
+        cmd = OFF_CMD;
+    }
+}
