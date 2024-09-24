@@ -48,4 +48,6 @@ void generalTest(TwoWire &WireComm, Stream &SerialComm);
 /// @param WireComm The i2c bus
 void strictTest(TwoWire &WireComm);
 
+void getNodeOrder(TwoWire &WireComm, uint8_t addresses, uint8_t length, uint8_t offset);
+
 #endif

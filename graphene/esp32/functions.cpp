@@ -93,3 +93,13 @@ void strictTest(TwoWire &WireComm)
         test = 0x00;
     }
 }
+
+void getNodeOrder(TwoWire &WireComm, uint8_t addresses, uint8_t length, uint8_t offset)
+{
+    uint8_t pressed_values = 0x00;
+
+    for(int node_i = 0; node_i < length; node_i++)
+    {
+        // wait for a button to be pressed
+    }
+}
