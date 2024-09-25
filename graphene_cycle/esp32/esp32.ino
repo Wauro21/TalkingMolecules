@@ -22,7 +22,7 @@ typedef enum
 
 // ---------------- Pinout Configurations ----------------
 // -> Used to read the state of the MP3 player:
-#define BUSY_READ_PIN 34
+#define BUSY_READ_PIN 4
 #define BUSY_THRESHOLD 2500
 
 
@@ -64,24 +64,6 @@ void sendMP3CMD(uint8_t cmd, uint16_t data);
 
 void setup()
 {
-    // Set all the led pin control to output
-    // -> Bank A
-    pinMode(LED_A_1, OUTPUT);
-    pinMode(LED_A_2, OUTPUT);
-    pinMode(LED_A_3, OUTPUT);
-    // -> Bank B
-    pinMode(LED_B_1, OUTPUT);
-    pinMode(LED_B_2, OUTPUT);
-    pinMode(LED_B_3, OUTPUT);
-
-    // -> Initialize to low every output
-    digitalWrite(LED_A_1, LOW);
-    digitalWrite(LED_A_2, LOW);
-    digitalWrite(LED_A_3, LOW);
-    digitalWrite(LED_B_1, LOW);
-    digitalWrite(LED_B_2, LOW);
-    digitalWrite(LED_B_3, LOW);
-
     // SETUP IO
     pinMode(BUSY_READ_PIN, INPUT); // MP3 Busy flag
     pinMode(INPUT_BUTTON, INPUT_PULLUP); // Button input
@@ -122,7 +104,7 @@ void loop()
     else
     {
         // Read the state of busy bit
-        busy_pin_read = analogRead(INPUT_BUTTON);
+        busy_pin_read = analogRead(BUSY_READ_PIN);
         if(busy_pin_read > BUSY_THRESHOLD)
         {
             current_state = 0;

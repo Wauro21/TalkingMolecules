@@ -94,12 +94,58 @@ void strictTest(TwoWire &WireComm)
     }
 }
 
-void getNodeOrder(TwoWire &WireComm, uint8_t addresses, uint8_t length, uint8_t offset)
-{
-    uint8_t pressed_values = 0x00;
 
-    for(int node_i = 0; node_i < length; node_i++)
+// CHECK AND CORRECT THIS FUNCTION -> WORKS BUT NEEDS CHECKING!
+void getNodeOrder(TwoWire &WireComm, uint8_t *nodes, uint8_t length, uint8_t offset, uint8_t start, uint8_t end)
+{
+    bool burnt_address[length];
+
+    for (int i = 0; i < length; i++)
     {
-        // wait for a button to be pressed
+        burnt_address[i] = false;
     }
+
+    bool search_flag = true;
+    uint8_t readed_len = 0;
+    uint8_t readed_value = 0x00;
+    for (uint8_t node_index = 0; node_index < length; node_index++)
+    {
+        // Query every node
+        search_flag = true;
+        while (search_flag)
+        {
+            for (uint8_t n_address = start; n_address <= end; n_address++)
+            {
+                if (!burnt_address[n_address - offset])
+                {
+                    readed_len = WireComm.requestFrom((int)n_address, I2C_READ_BYTES, I2C_STOP_END);
+                    if (readed_len > 0)
+                    {
+                        // Button has been pressed
+                        readed_value = WireComm.read();
+                        if(readed_value == INPUT_B_PRESSED)
+                        {
+                            sendWireCMD(WireComm, n_address, ON_CMD);
+                            nodes[node_index] = n_address;
+                            burnt_address[n_address-offset] = true;
+                            search_flag = false;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Check by animating 
+    delay(1000);
+    sendWireCMD(WireComm, 0, OFF_CMD);
+    delay(1000);
+    for(uint8_t node_index = 0; node_index < length; node_index++)
+    {
+        sendWireCMD(WireComm, (int) nodes[node_index], ON_CMD);
+        delay(500);
+    }
+    delay(2000);
+    sendWireCMD(WireComm, 0, OFF_CMD);
 }

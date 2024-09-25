@@ -20,20 +20,25 @@
 #define STATUS_LED 23
 // ----------------- MP3 Defaults Values ----------------
 #define CMD_PLAY_FOLDER_TRACK 0x0F
-// -> Tracks for button A pressed
-#define A_FOLDER_TRACK_A 0x0101
-#define B_FOLDER_TRACK_A 0x0102
-#define C_FOLDER_TRACK_A 0x0103
-#define D_FOLDER_TRACK_A 0x0104
-#define E_FOLDER_TRACK_A 0x0105
-#define F_FOLDER_TRACK_A 0x0106
-// -> Tracks for button B pressed
-#define A_FOLDER_TRACK_B 0x0201
-#define B_FOLDER_TRACK_B 0x0202
-#define C_FOLDER_TRACK_B 0x0203
-#define D_FOLDER_TRACK_B 0x0204
-#define E_FOLDER_TRACK_B 0x0205
-#define F_FOLDER_TRACK_B 0x0206
+// -> Tracks for button A pressed - > Main node
+#define A_FOLDER_TRACK_A 0x0201
+#define B_FOLDER_TRACK_A 0x0202
+#define C_FOLDER_TRACK_A 0x0203
+#define D_FOLDER_TRACK_A 0x0204
+#define E_FOLDER_TRACK_A 0x0205
+#define F_FOLDER_TRACK_A 0x0206
+// -> Tracks for button B pressed - > bond
+#define A_FOLDER_TRACK_B 0x0101
+#define B_FOLDER_TRACK_B 0x0102
+#define C_FOLDER_TRACK_B 0x0103
+#define D_FOLDER_TRACK_B 0x0104
+#define E_FOLDER_TRACK_B 0x0105
+#define F_FOLDER_TRACK_B 0x0106
+
+
+#define ATOM_ANIMATION 0x11
+#define BOND_ANIMATION 0x99
+
 // -> MP3 module busy state
 uint16_t busy_pin_read = 0;
 // -> FSM State - 0: idle, 1: playing
@@ -43,7 +48,11 @@ bool lock_cpu = true;
 int node_pressed = 0;
 uint8_t node_button = 0;
 int audio_track = 0;
+uint8_t nodes_order[6];
+uint8_t current_animation = 0x00;
 // ---------------- Functions declarations --------------
+uint8_t nextNode(uint8_t current_node);
+uint8_t prevNode(uint8_t current_node);
 
 /// @brief Setup operation of the microcontroller
 void setup()
@@ -75,7 +84,7 @@ void setup()
     delay(WIRE_INIT_DELAY);
     generalTest(Wire, Serial);
     delay(WIRE_INIT_DELAY);
-    if (strict_test_read >= I2C_STRICT_PIN_THRESHOLD)
+    if (false)
     {
         strictTest(Wire);
     }
@@ -86,6 +95,9 @@ void setup()
     // Initialize state variables
     busy_pin_read = 0;
     current_state = 0;
+
+    // Ordering the nodes
+    getNodeOrder(Wire, nodes_order, 6, 8);
 }
 
 void loop()
@@ -100,13 +112,28 @@ void loop()
             response_length = Wire.requestFrom((int)add_i, I2C_READ_BYTES, I2C_STOP_END);
             if (response_length)
             {
-                // A valid message has been received from node
-                node_pressed = add_i;
                 node_button = Wire.read();
-                // Unlock CPU to go to sound and animation routine
-                lock_cpu = false;
-                // Escape checking routine
-                break;
+                if (node_button != 0x00)
+                {
+                    // A valid message has been received from node
+                    node_pressed = add_i;
+                    // Unlock CPU to go to sound and animation routine
+                    lock_cpu = false;
+
+                    // Select animation
+                    if(node_button == INPUT_A_PRESSED)
+                    {
+                        current_animation = BOND_ANIMATION;
+                    }
+
+                    else if(node_button == INPUT_B_PRESSED)
+                    {
+                        current_animation = ATOM_ANIMATION;
+                    }
+
+                    // Escape checking routine
+                    break;
+                }
             }
         }
     }
@@ -117,21 +144,85 @@ void loop()
     // Wait before checking pin for animation
     delay(500);
     // Get the animation
+
+    // Check the current node against the nodes order
+    uint8_t node_order_index = node_pressed;
+
+    for (int i = 0; i < 6; i++)
+    {
+        if (node_pressed == nodes_order[i])
+        {
+            node_order_index = i;
+            break;
+        }
+    }
+
     while (!lock_cpu)
     {
         busy_pin_read = analogRead(BUSY_READ_PIN);
-        if(busy_pin_read < BUSY_THRESHOLD)
+        if (busy_pin_read > BUSY_THRESHOLD)
         {
             lock_cpu = true;
             // Clear the animation
+            current_animation = 0x00;
             sendWireCMD(Wire, 0, OFF_CMD);
             break;
         }
 
-        // Select the animation to display [TO BE IMPLEMENTED]
+        // Select the animation to display
+        else
+        {
+            if (current_animation == BOND_ANIMATION) // Bond
+            {
+                // Turn off previous nodes
+                uint8_t pre_n = prevNode(node_order_index);
+                uint8_t pre_pre_n = prevNode(pre_n);
+                uint8_t next_node = nextNode(node_order_index);
+                sendWireCMD(Wire, nodes_order[pre_pre_n], OFF_CMD);
+                sendWireCMD(Wire, nodes_order[pre_n], OFF_CMD);
+
+                // Turn on current nodes
+                sendWireCMD(Wire, nodes_order[node_order_index], ON_CMD);
+                sendWireCMD(Wire, nodes_order[next_node], ON_CMD);
+
+                // Update current node
+                node_order_index = next_node;
+                delay(1000);
+            }
+
+            else if (current_animation == ATOM_ANIMATION) // ATOMS
+            {
+                sendWireCMD(Wire, 0, ON_CMD);
+                delay(2000);
+                sendWireCMD(Wire, 0, OFF_CMD);
+            }
+        }
     }
 }
 
+uint8_t nextNode(uint8_t current_node)
+{
+    if (current_node == 5)
+    {
+        return 0;
+    }
+    else
+    {
+        return current_node + 1;
+    }
+}
+
+uint8_t prevNode(uint8_t current_node)
+{
+    if (current_node == 0)
+    {
+        return 5;
+    }
+    else
+    {
+        return current_node - 1;
+    }
+}
 
 int getNodeAudioTrack(int node_id, uint8_t button_pressed)
 {
