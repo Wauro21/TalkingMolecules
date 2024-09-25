@@ -35,7 +35,6 @@
 #define E_FOLDER_TRACK_B 0x0105
 #define F_FOLDER_TRACK_B 0x0106
 
-
 #define ATOM_ANIMATION 0x11
 #define BOND_ANIMATION 0x99
 
@@ -121,12 +120,12 @@ void loop()
                     lock_cpu = false;
 
                     // Select animation
-                    if(node_button == INPUT_A_PRESSED)
+                    if (node_button == INPUT_A_PRESSED)
                     {
                         current_animation = BOND_ANIMATION;
                     }
 
-                    else if(node_button == INPUT_B_PRESSED)
+                    else if (node_button == INPUT_B_PRESSED)
                     {
                         current_animation = ATOM_ANIMATION;
                     }
@@ -172,7 +171,9 @@ void loop()
         // Select the animation to display
         else
         {
-            if (current_animation == BOND_ANIMATION) // Bond
+            switch (current_animation)
+            {
+            case BOND_ANIMATION:
             {
                 // Turn off previous nodes
                 uint8_t pre_n = prevNode(node_order_index);
@@ -188,14 +189,45 @@ void loop()
                 // Update current node
                 node_order_index = next_node;
                 delay(1000);
+                break;
             }
 
-            else if (current_animation == ATOM_ANIMATION) // ATOMS
+            case ATOM_ANIMATION:
             {
                 sendWireCMD(Wire, 0, ON_CMD);
-                delay(2000);
+                delay(500);
                 sendWireCMD(Wire, 0, OFF_CMD);
+                delay(500);
+                break;
             }
+            default:
+                break;
+            }
+
+            // if (current_animation == BOND_ANIMATION) // Bond
+            // {
+            //     // Turn off previous nodes
+            //     uint8_t pre_n = prevNode(node_order_index);
+            //     uint8_t pre_pre_n = prevNode(pre_n);
+            //     uint8_t next_node = nextNode(node_order_index);
+            //     sendWireCMD(Wire, nodes_order[pre_pre_n], OFF_CMD);
+            //     sendWireCMD(Wire, nodes_order[pre_n], OFF_CMD);
+
+            //     // Turn on current nodes
+            //     sendWireCMD(Wire, nodes_order[node_order_index], ON_CMD);
+            //     sendWireCMD(Wire, nodes_order[next_node], ON_CMD);
+
+            //     // Update current node
+            //     node_order_index = next_node;
+            //     delay(1000);
+            // }
+
+            // else if (current_animation == ATOM_ANIMATION) // ATOMS
+            // {
+            //     sendWireCMD(Wire, 0, ON_CMD);
+            //     delay(2000);
+            //     sendWireCMD(Wire, 0, OFF_CMD);
+            // }
         }
     }
 }
