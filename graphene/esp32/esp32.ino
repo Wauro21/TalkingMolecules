@@ -37,6 +37,7 @@
 
 #define ATOM_ANIMATION 0x11
 #define BOND_ANIMATION 0x99
+#define FULL_ANIMATION 0x55
 
 // -> MP3 module busy state
 uint16_t busy_pin_read = 0;
@@ -127,7 +128,14 @@ void loop()
 
                     else if (node_button == INPUT_B_PRESSED)
                     {
-                        current_animation = ATOM_ANIMATION;
+                        if ((add_i == 8) || (add_i == 10) || (add_i == add_i == 11))
+                        {
+                            current_animation = FULL_ANIMATION;
+                        }
+                        else
+                        {
+                            current_animation = ATOM_ANIMATION;
+                        }
                     }
 
                     // Escape checking routine
@@ -146,6 +154,7 @@ void loop()
 
     // Check the current node against the nodes order
     uint8_t node_order_index = node_pressed;
+    uint8_t animation_counter = 0;
 
     for (int i = 0; i < 6; i++)
     {
@@ -164,6 +173,7 @@ void loop()
             lock_cpu = true;
             // Clear the animation
             current_animation = 0x00;
+            animation_counter = 0;
             sendWireCMD(Wire, 0, OFF_CMD);
             break;
         }
@@ -195,11 +205,38 @@ void loop()
             case ATOM_ANIMATION:
             {
                 sendWireCMD(Wire, 0, ON_CMD);
-                delay(500);
+                delay(1000);
                 sendWireCMD(Wire, 0, OFF_CMD);
+                delay(1000);
+                break;
+            }
+
+            case FULL_ANIMATION:
+            {
+                uint8_t animation_cmd = ON_CMD;
+                if (animation_counter < 6)
+                {
+                    animation_cmd = ON_CMD;
+                }
+
+                else
+                {
+                    animation_cmd = OFF_CMD;
+                }
+                sendWireCMD(Wire, nodes_order[node_order_index], animation_cmd);
+                node_order_index = nextNode(node_order_index);
+                if(animation_counter == 12)
+                {
+                    animation_counter = 0;
+                }
+                else 
+                {
+                    animation_counter +=1;
+                }
                 delay(500);
                 break;
             }
+
             default:
                 break;
             }
