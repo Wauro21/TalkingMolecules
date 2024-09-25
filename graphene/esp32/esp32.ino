@@ -224,7 +224,6 @@ void loop()
                     animation_cmd = OFF_CMD;
                 }
                 sendWireCMD(Wire, nodes_order[node_order_index], animation_cmd);
-                node_order_index = nextNode(node_order_index);
                 if(animation_counter == 12)
                 {
                     animation_counter = 0;
@@ -232,6 +231,7 @@ void loop()
                 else 
                 {
                     animation_counter +=1;
+                    node_order_index = nextNode(node_order_index);
                 }
                 delay(500);
                 break;
