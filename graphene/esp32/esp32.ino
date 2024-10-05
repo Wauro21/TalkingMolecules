@@ -201,7 +201,7 @@ void loop()
             case FULL_ANIMATION:
             {
                 uint8_t animation_cmd = ON_CMD;
-                if (animation_counter < 6)
+                if (animation_counter < NUMBER_OF_NODES)
                 {
                     animation_cmd = ON_CMD;
                 }
@@ -211,7 +211,7 @@ void loop()
                     animation_cmd = OFF_CMD;
                 }
                 sendWireCMD(Wire, nodes_order[node_order_index], animation_cmd);
-                if (animation_counter == 12)
+                if (animation_counter == (2*NUMBER_OF_NODES))
                 {
                     animation_counter = 0;
                 }
