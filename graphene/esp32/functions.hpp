@@ -15,7 +15,7 @@
 #define END_ADDRESS 13 // Inclusive
 #define INPUT_A_PRESSED 0xAA
 #define INPUT_B_PRESSED 0x55
-
+#define NUMBER_OF_NODES 6
 
 
 /// @brief Sends a CMD with data to the MP3 Player
@@ -48,6 +48,25 @@ void generalTest(TwoWire &WireComm, Stream &SerialComm);
 /// @param WireComm The i2c bus
 void strictTest(TwoWire &WireComm);
 
-void getNodeOrder(TwoWire &WireComm, uint8_t* nodes, uint8_t length, uint8_t offset, uint8_t start=8, uint8_t end=13);
+/// @brief Performs an ordering routine for the available nodes. Waits for the user to press the button to indicate the correct order sequence
+/// @param WireComm The I2C-Wire object
+/// @param nodes The node array pointer to modify and return
+/// @param length The number of nodes available
+/// @param offset The offset address. The first node start at address=8, so the offset will be 8
+/// @param start The start address
+/// @param end The end address
+void getNodeOrder(TwoWire &WireComm, uint8_t* nodes, uint8_t length, uint8_t offset, uint8_t start=START_ADDRESS, uint8_t end=END_ADDRESS);
+
+/// @brief Return the next index on the ordered node array
+/// @param current_node The current node index
+/// @param length The number of available nodes
+/// @return The next index of the array 
+uint8_t nextNode(uint8_t current_node, uint8_t length=NUMBER_OF_NODES);
+
+/// @brief Return the previous index on the ordered node array
+/// @param current_node The current node index
+/// @param length The number of available nodes
+/// @return The previous index of the array
+uint8_t prevNode(uint8_t current_node, uint8_t length=NUMBER_OF_NODES);
 
 #endif

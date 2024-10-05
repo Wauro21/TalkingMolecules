@@ -98,24 +98,29 @@ void strictTest(TwoWire &WireComm)
 // CHECK AND CORRECT THIS FUNCTION -> WORKS BUT NEEDS CHECKING!
 void getNodeOrder(TwoWire &WireComm, uint8_t *nodes, uint8_t length, uint8_t offset, uint8_t start, uint8_t end)
 {
+    // Array to hold the already checked nodes
     bool burnt_address[length];
-
+    // Initialize the burnt array to uncheck status
     for (int i = 0; i < length; i++)
     {
         burnt_address[i] = false;
     }
 
+    // Temporal values for checking nodes
     bool search_flag = true;
     uint8_t readed_len = 0;
     uint8_t readed_value = 0x00;
+    // Start by ordering the noder from 0 to length
     for (uint8_t node_index = 0; node_index < length; node_index++)
     {
-        // Query every node
+        // Query every node : Lock CPU until a node answers
         search_flag = true;
         while (search_flag)
         {
+            // Transverse every possible address
             for (uint8_t n_address = start; n_address <= end; n_address++)
             {
+                // Only nodes that haven't answer can respond to the poll
                 if (!burnt_address[n_address - offset])
                 {
                     readed_len = WireComm.requestFrom((int)n_address, I2C_READ_BYTES, I2C_STOP_END);
@@ -123,8 +128,10 @@ void getNodeOrder(TwoWire &WireComm, uint8_t *nodes, uint8_t length, uint8_t off
                     {
                         // Button has been pressed
                         readed_value = WireComm.read();
+                        // Only accept the button associated to the nodes (green nodes)
                         if(readed_value == INPUT_B_PRESSED)
                         {
+                            // Inform the user that the node has been checked by turning it ON
                             sendWireCMD(WireComm, n_address, ON_CMD);
                             nodes[node_index] = n_address;
                             burnt_address[n_address-offset] = true;
@@ -137,7 +144,8 @@ void getNodeOrder(TwoWire &WireComm, uint8_t *nodes, uint8_t length, uint8_t off
         }
     }
 
-    // Check by animating 
+    // After the nodes have been ordered: Inform the user by animating the found order
+    // Turn all nodes to OFF and then turn then ON in order and finally all back to OFF state
     delay(1000);
     sendWireCMD(WireComm, 0, OFF_CMD);
     delay(1000);
@@ -148,4 +156,32 @@ void getNodeOrder(TwoWire &WireComm, uint8_t *nodes, uint8_t length, uint8_t off
     }
     delay(2000);
     sendWireCMD(WireComm, 0, OFF_CMD);
+}
+
+uint8_t nextNode(uint8_t current_node, uint8_t length)
+{
+    if (current_node == (length-1))
+    {
+        // Cycle back to start
+        return 0;
+    }
+    else
+    {
+        // Just go to the next index available
+        return current_node + 1;
+    }
+}
+
+uint8_t prevNode(uint8_t current_node, uint8_t length)
+{
+    if (current_node == 0)
+    {
+        // First node, loop to the end of node list
+        return (length-1);
+    }
+    else
+    {
+        // Return next node available
+        return current_node - 1;
+    }
 }
