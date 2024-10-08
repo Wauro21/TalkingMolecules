@@ -16,6 +16,8 @@
 #define BUSY_READ_PIN 4
 #define BUSY_THRESHOLD 2500
 #define INPUT_BUTTON 2
+#define LIMIT_A 12 // CHECK
+#define LIMIT_B 11 // CHECK
 
 // -> Input buttons states
 ButtonStates button_a_state = BUTTON_IDLE;
@@ -37,12 +39,34 @@ int current_state = 0;
 #define LED_B_2 22
 #define LED_B_3 25
 
+// LED STATUS
+volatile bool BANK_A = false;
+volatile bool BANK_B = false;
+
+// IF ENOUGH TIME FOR TIMERS
+// https://www.luisllamas.es/en/esp32-timers/
+// https://docs.espressif.com/projects/arduino-esp32/en/latest/api/timer.html
+
+// ISRs
+void IRAM_ATTR updateBankA()
+{
+    BANK_A = !BANK_A;
+}
+
+void IRAM_ATTR updateBankB()
+{
+    BANK_B = !BANK_B;
+}
+
 void setup()
 {
     // SETUP IO
-    pinMode(BUSY_READ_PIN, INPUT); // MP3 Busy flag
+    pinMode(BUSY_READ_PIN, INPUT);       // MP3 Busy flag
     pinMode(INPUT_BUTTON, INPUT_PULLUP); // Button input
-    // -> LED: Bank A 
+    // -> LIMIT SWITCHES
+    pinMode(LIMIT_A, INPUT);
+    pinMode(LIMIT_B, INPUT);
+    // -> LED: Bank A
     pinMode(LED_A_1, OUTPUT);
     pinMode(LED_A_2, OUTPUT);
     pinMode(LED_A_3, OUTPUT);
@@ -82,20 +106,26 @@ void setup()
     digitalWrite(LED_B_1, LOW);
     digitalWrite(LED_B_2, LOW);
     digitalWrite(LED_B_3, LOW);
-    
 
+    // LED STATUS
+    BANK_A = false;
+    BANK_B = false;
+
+    // INTERRUPTS
+    attachInterrupt(LIMIT_A, updateBankA, FALLING);
+    attachInterrupt(LIMIT_B, updateBankB, FALLING);
 }
 
 void loop()
 {
 
     // -> BUTTON LOGIC
-    if(current_state == 0) // Checking if IDLE
+    if (current_state == 0) // Checking if IDLE
     {
         // Read button
         button_a_state = readButtonDebounce(&button_a_debounce, INPUT_BUTTON);
 
-        if(button_a_state == BUTTON_PRESS)
+        if (button_a_state == BUTTON_PRESS)
         {
             sendMP3CMD(Serial2, CMD_PLAY_FOLDER_TRACK, A_FOLDER_TRACK);
             current_state = 1;
@@ -107,7 +137,7 @@ void loop()
     {
         // Read the state of busy bit
         busy_pin_read = analogRead(BUSY_READ_PIN);
-        if(busy_pin_read > BUSY_THRESHOLD)
+        if (busy_pin_read > BUSY_THRESHOLD)
         {
             current_state = 0;
             button_a_state = BUTTON_IDLE;
@@ -116,4 +146,11 @@ void loop()
     }
 
     // -> LIGHT LOGIC
+
+    digitalWrite(LED_A_1, BANK_A);
+    digitalWrite(LED_A_2, BANK_A);
+    digitalWrite(LED_A_3, BANK_A);
+    digitalWrite(LED_B_1, BANK_B);
+    digitalWrite(LED_B_2, BANK_B);
+    digitalWrite(LED_B_3, BANK_B);
 }
